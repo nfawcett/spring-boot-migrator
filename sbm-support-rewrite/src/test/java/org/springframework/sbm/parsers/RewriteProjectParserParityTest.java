@@ -16,17 +16,18 @@
 package org.springframework.sbm.parsers;
 
 import org.intellij.lang.annotations.Language;
-import org.junit.jupiter.api.BeforeEach;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junitpioneer.jupiter.Issue;
-import org.mockito.Mockito;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.SourceFile;
+import org.openrewrite.java.JavaParser;
+import org.openrewrite.java.internal.JavaTypeCache;
 import org.openrewrite.java.marker.JavaProject;
 import org.openrewrite.java.marker.JavaSourceSet;
 import org.openrewrite.java.marker.JavaVersion;
@@ -40,15 +41,11 @@ import org.openrewrite.maven.MavenExecutionContextView;
 import org.openrewrite.maven.MavenSettings;
 import org.openrewrite.maven.cache.CompositeMavenPomCache;
 import org.openrewrite.maven.tree.MavenResolutionResult;
-import org.openrewrite.shaded.jgit.api.Git;
 import org.openrewrite.shaded.jgit.api.errors.GitAPIException;
 import org.openrewrite.tree.ParsingEventListener;
 import org.openrewrite.tree.ParsingExecutionContextView;
 import org.openrewrite.xml.style.Autodetect;
 import org.openrewrite.xml.tree.Xml;
-import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
-import org.sonatype.plexus.components.cipher.PlexusCipherException;
-import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -58,10 +55,9 @@ import org.springframework.sbm.parsers.*;
 import org.springframework.sbm.parsers.events.RewriteParsingEventListenerAdapter;
 import org.springframework.sbm.scopes.ScanScope;
 import org.springframework.sbm.test.util.DummyResource;
-import org.springframework.sbm.utils.ResourceUtil;
+import org.springframework.sbm.test.util.ParserParityTestHelper;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.File;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -76,6 +72,8 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
 import static org.mockito.Mockito.mock;
+
+
 
 /**
  * Test parity between OpenRewrite parser logic and RewriteProjectParser.
