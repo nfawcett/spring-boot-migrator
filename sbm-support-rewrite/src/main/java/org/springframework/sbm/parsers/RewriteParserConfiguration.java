@@ -58,7 +58,6 @@ public class RewriteParserConfiguration {
 //    }
 
 
-
     @Bean
     ProvenanceMarkerFactory provenanceMarkerFactory(MavenProvenanceMarkerFactory mavenPovenanceMarkerFactory) {
         return new ProvenanceMarkerFactory(mavenPovenanceMarkerFactory);
@@ -78,7 +77,7 @@ public class RewriteParserConfiguration {
     @Bean
     ModuleParser moduleParser() {
         return new ModuleParser();
-    }
+    }<
 
     @Bean
     MavenModuleParser mavenModuleParser(ParserProperties parserPropeties, ModuleParser moduleParser) {
