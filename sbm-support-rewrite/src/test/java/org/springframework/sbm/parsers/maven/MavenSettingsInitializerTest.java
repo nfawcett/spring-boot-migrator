@@ -13,11 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.sbm.build.impl;
+package org.springframework.sbm.parsers.maven;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.SetSystemProperty;
 import org.openrewrite.maven.MavenExecutionContextView;
 import org.openrewrite.maven.tree.MavenRepository;
+import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
+import org.sonatype.plexus.components.cipher.PlexusCipherException;
+import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.sbm.parsers.RewriteExecutionContext;
 
 import java.net.URI;
@@ -37,26 +43,17 @@ class MavenSettingsInitializerTest {
     // with a test that loads MavenRepository before 'user.home' was changed in this test, it fails.
     // And maybe even worse, running this test before others would set the local maven repository to the
     // dummy dir used in this test.
-    // To prevent this it will be initialized (if it wasn't already) with the original settings with this line:
+    //
+    // To prevent this it will be set to the original settings with this line:
     MavenRepository mavenLocalDefault = MavenRepository.MAVEN_LOCAL_DEFAULT;
-    private String actualUserHome;
-    private Path fakedUserHome;
-
-    @BeforeEach
-    void beforeEach() {
-        // Faking the local maven dir to provide the settings.xml for this test
-        fakedUserHome = Path.of("./testcode/project-with-maven-settings/user-home").toAbsolutePath().normalize();
-        actualUserHome = System.getProperty("user.home");
-        System.setProperty("user.home", fakedUserHome.toString());
-    }
 
     @Test
-    void mavenParserMustAdhereToSettingsXmlTest() throws URISyntaxException {
-
+    @SetSystemProperty(key = "user.home", value = "./testcode/maven-projects/project-with-maven-settings/user-home")
+    void mavenParserMustAdhereToSettingsXmlTest() throws URISyntaxException, PlexusCipherException {
 
         RewriteExecutionContext executionContext = new RewriteExecutionContext();
-        MavenSettingsInitializer sut = new MavenSettingsInitializer();
-        sut.initializeMavenSettings(executionContext);
+        MavenSettingsInitializer sut = new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext);
+        sut.initializeMavenSettings();
         MavenExecutionContextView mavenExecutionContextView = MavenExecutionContextView.view(executionContext);
 
         assertThat(mavenExecutionContextView.getRepositories()).hasSize(1);
@@ -87,9 +84,4 @@ class MavenSettingsInitializerTest {
         return string;
     }
 
-    @AfterEach
-    public void reset() {
-        // reset
-        System.setProperty("user.home", actualUserHome);
-    }
 }

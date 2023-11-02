@@ -16,6 +16,7 @@
 package org.springframework.sbm.parsers;
 
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,13 @@ import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.java.marker.JavaProject;
 import org.openrewrite.marker.Marker;
 import org.openrewrite.xml.tree.Xml;
+import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
+import org.sonatype.plexus.components.cipher.PlexusCipherException;
+import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.core.io.Resource;
 import org.springframework.sbm.parsers.maven.BuildFileParser;
+import org.springframework.sbm.parsers.maven.MavenPasswordDecrypter;
+import org.springframework.sbm.parsers.maven.MavenSettingsInitializer;
 import org.springframework.sbm.test.util.DummyResource;
 import org.springframework.sbm.utils.ResourceUtil;
 
@@ -99,7 +105,13 @@ class BuildFileParserTest {
                         </project>
                         """;
 
-        private final BuildFileParser sut = new BuildFileParser();
+        private BuildFileParser sut;
+
+        @BeforeEach
+        void beforeEach() throws PlexusCipherException {
+            ExecutionContext executionContext = new InMemoryExecutionContext(t -> {throw new RuntimeException(t);});
+            sut = new BuildFileParser(new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext));
+        }
 
         @Test
         void filterAndSortBuildFiles_shouldReturnSortedListOfFilteredBuildFiles() {

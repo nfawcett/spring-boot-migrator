@@ -230,7 +230,6 @@
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-cipher</artifactId>
             <version>${plexus-cypher.version}</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.maven.shared</groupId>
@@ -247,6 +246,22 @@
             <groupId>org.junit-pioneer</groupId>
             <artifactId>junit-pioneer</artifactId>
             <version>${junit-pioneer.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.10.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

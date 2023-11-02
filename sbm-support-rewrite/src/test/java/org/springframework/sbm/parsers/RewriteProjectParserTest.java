@@ -25,6 +25,9 @@ import org.openrewrite.Parser;
 import org.openrewrite.SourceFile;
 import org.openrewrite.tree.ParsingEventListener;
 import org.openrewrite.tree.ParsingExecutionContextView;
+import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
+import org.sonatype.plexus.components.cipher.PlexusCipherException;
+import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -86,7 +89,7 @@ class RewriteProjectParserTest {
 
     @Test
     @DisplayName("Parse simple Maven project")
-    void parseSimpleMavenProject(@TempDir Path tempDir) {
+    void parseSimpleMavenProject(@TempDir Path tempDir) throws PlexusCipherException {
         Path basePath = tempDir;
         ParserProperties parserProperties = new ParserProperties();
         ModuleParser mavenMojoParserPrivateMethods = new ModuleParser();
@@ -94,7 +97,7 @@ class RewriteProjectParserTest {
         MavenModuleParser mavenModuleParser = new MavenModuleParser(parserProperties, mavenMojoParserPrivateMethods);
         RewriteProjectParser projectParser = new RewriteProjectParser(
                 new ProvenanceMarkerFactory(new MavenProvenanceMarkerFactory()),
-                new BuildFileParser(),
+                new BuildFileParser(new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext)),
                 new SourceFileParser(mavenModuleParser),
                 new StyleDetector(),
                 parserProperties,

@@ -13,11 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.sbm.build.impl;
+package org.springframework.sbm.parsers.maven;
 
+import lombok.RequiredArgsConstructor;
 import org.openrewrite.ExecutionContext;
+import org.openrewrite.Parser;
 import org.openrewrite.maven.MavenExecutionContextView;
 import org.openrewrite.maven.MavenSettings;
+import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
+import org.springframework.core.io.Resource;
+import org.springframework.sbm.utils.ResourceUtil;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
@@ -27,8 +32,15 @@ import java.nio.file.Path;
  * @author Fabian Krüger
  */
 @Component
+@RequiredArgsConstructor
 public class MavenSettingsInitializer {
-    public void initializeMavenSettings(ExecutionContext executionContext) {
+
+    private final MavenPasswordDecrypter mavenPasswordDecrypter;
+    private final ExecutionContext executionContext;
+    /**
+     * @deprecated initialization in ExecutionoContext is done in ProjectParser
+     */
+    public void initializeMavenSettings() {
         // Read .m2/settings.xml
         // TODO: Add support for global Maven settings (${maven.home}/conf/settings.xml).
         MavenExecutionContextView mavenExecutionContextView = MavenExecutionContextView.view(executionContext);
@@ -38,4 +50,13 @@ public class MavenSettingsInitializer {
             mavenExecutionContextView.setMavenSettings(mavenSettings);
         }
     }
+
+    public MavenSettings initializeMavenSettings(Resource mavenSettingsFile, Path securitySettingsFilePath) {
+        Parser.Input input = new Parser.Input(ResourceUtil.getPath(mavenSettingsFile), () -> ResourceUtil.getInputStream(mavenSettingsFile));
+        MavenSettings mavenSettings = MavenSettings.parse(input, executionContext);
+        mavenPasswordDecrypter.decryptMavenServerPasswords(mavenSettings, securitySettingsFilePath);
+        MavenExecutionContextView.view(executionContext).setMavenSettings(mavenSettings);
+        return mavenSettings;
+    }
+
 }

@@ -254,6 +254,10 @@
                     <excludedGroups>integration</excludedGroups>
                     <parallel>methods</parallel>
                     <threadCount>10</threadCount>
+                    <argLine>
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -266,6 +270,10 @@
                         <include>**/*Test.java</include>
                     </includes>
                     <trimStackTrace>false</trimStackTrace>
+                    <argLine>
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
                 </configuration>
                 <executions>
                     <execution>

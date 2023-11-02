@@ -1,0 +1,12 @@
+# Artifact Repository Test
+
+Test that artifacts available in a private artifact repository configured in `~/.m2/settings.xml` and `~/.m2/security-settings.xml` can be accessed.
+This is important as many enterprise projects use their private artifact repository to retrieve private dependencies.
+
+A local and private artifact repository (https://github.com/dzikoysk/reposilite[reposilite]) is started in a docker container.
+The reposilite instance has a user configured (admin:secret) which can deploy and access artifacts.
+
+A project that uses this dependency is parsed.
+After successful dependency resolution the types of this artifact must be available on the AST.
+
+The `user.home` is set to point to `testcode/reposilite-test/user.home` which contains a `.m2` directory providing access configuration to the reposilite instance through `.m2/settings.xml` and `.m2/security-settings.xml`,

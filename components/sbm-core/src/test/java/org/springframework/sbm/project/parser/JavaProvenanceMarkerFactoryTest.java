@@ -22,7 +22,7 @@ import org.openrewrite.java.marker.JavaVersion;
 import org.openrewrite.marker.BuildTool;
 import org.openrewrite.marker.Marker;
 import org.openrewrite.xml.tree.Xml;
-import org.springframework.sbm.build.impl.MavenSettingsInitializer;
+import org.springframework.sbm.parsers.maven.MavenSettingsInitializer;
 import org.springframework.sbm.build.impl.RewriteMavenParser;
 import org.springframework.sbm.parsers.RewriteExecutionContext;
 

@@ -32,24 +32,26 @@ import java.util.List;
  * @author Fabian Krüger
  */
 @RequiredArgsConstructor
-// TODO: should be package private
-public class MavenPasswordDecrypter {
+public
+class MavenPasswordDecrypter {
 
-    public void decryptMavenServerPasswords(SecDispatcher secDispatcher, MavenSettings mavenSettings, Path mavenSecuritySettingsFile) {
+    private final SecDispatcher secDispatcher;
+
+    public void decryptMavenServerPasswords(MavenSettings mavenSettings, Path mavenSecuritySettingsFile) {
         System.setProperty("settings.security", mavenSecuritySettingsFile.toString());
         if (mavenSettings.getServers() != null && mavenSettings.getServers().getServers() != null) {
             List<MavenSettings.Server> servers = mavenSettings.getServers().getServers();
             for (int i = 0; i < servers.size(); i++) {
                 MavenSettings.Server server = servers.get(i);
                 if (server.getPassword() != null) {
-                    MavenSettings.Server serverWithDecodedPw = decryptPassword(secDispatcher, server);
+                    MavenSettings.Server serverWithDecodedPw = decryptPassword(server);
                     servers.set(i, serverWithDecodedPw);
                 }
             }
         }
     }
 
-    private MavenSettings.Server decryptPassword(SecDispatcher secDispatcher, MavenSettings.Server server) {
+    private MavenSettings.Server decryptPassword(MavenSettings.Server server) {
         try {
             String decryptionResult = secDispatcher.decrypt(server.getPassword());
             return server.withPassword(decryptionResult);
