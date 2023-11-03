@@ -1,0 +1,2 @@
+testcode/reposilite-test/reposilite-data/**
+!testcode/reposilite-test/reposilite-data/shared.configuration.json
