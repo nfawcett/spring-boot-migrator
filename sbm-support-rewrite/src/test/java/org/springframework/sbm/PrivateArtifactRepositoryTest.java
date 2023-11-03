@@ -15,8 +15,11 @@
  */
 package org.springframework.sbm;
 
+import net.sf.saxon.trans.SymbolicName;
+import org.apache.commons.io.FileUtils;
 import org.apache.maven.shared.invoker.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
 import org.openrewrite.SourceFile;
 import org.openrewrite.java.JavaParser;
 import org.openrewrite.java.internal.JavaTypeCache;
@@ -37,14 +40,19 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.fail;
@@ -83,10 +91,83 @@ public class PrivateArtifactRepositoryTest {
     private Path dependencyPathInLocalMavenRepo = Path.of(TESTCODE_DIR + "/user.home/.m2/repository/com/example/dependency/dependency-project");
 
     @BeforeAll
-    static void beforeAll() {
+    static void beforeAll(@TempDir Path tempDir) {
         originalUserHome = System.getProperty("user.home");
         newUserHome = Path.of(".").resolve(TESTCODE_DIR + "/user.home").toAbsolutePath().normalize().toString();
         System.setProperty("user.home", newUserHome);
+
+        // download Maven
+        if (!Path.of("./testcode/reposilite-test/user.home/apache-maven-3.9.5/bin/mvn").toFile().exists()) {
+            String mavenDownloadUrl = "https://dlcdn.apache.org/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.zip";
+            try {
+                Path mavenInstallDir = Path.of(TESTCODE_DIR + "/user.home");
+                File downloadedMavenZipFile = tempDir.resolve("apache-maven-3.9.5-bin.zip").toFile();
+                FileUtils.copyURLToFile(
+                        new URL(mavenDownloadUrl),
+                        downloadedMavenZipFile,
+                        10000,
+                        30000);
+                unzip(downloadedMavenZipFile, mavenInstallDir);
+                File file = mavenInstallDir.resolve("apache-maven-3.9.5/bin/mvn").toFile();
+                file.setExecutable(true, false);
+                assertThat(file.canExecute()).isTrue();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private static void unzip(File downloadedMavenZipFile, Path mavenInstallDir) {
+        try {
+            byte[] buffer = new byte[1024];
+            ZipInputStream zis = null;
+
+            zis = new ZipInputStream(new FileInputStream(downloadedMavenZipFile));
+
+            ZipEntry zipEntry = zis.getNextEntry();
+            while (zipEntry != null) {
+                File newFile = newFile(mavenInstallDir.toFile(), zipEntry);
+                if (zipEntry.isDirectory()) {
+                    if (!newFile.isDirectory() && !newFile.mkdirs()) {
+                        throw new IOException("Failed to create directory " + newFile);
+                    }
+                } else {
+                    // fix for Windows-created archives
+                    File parent = newFile.getParentFile();
+                    if (!parent.isDirectory() && !parent.mkdirs()) {
+                        throw new IOException("Failed to create directory " + parent);
+                    }
+
+                    // write file content
+                    FileOutputStream fos = new FileOutputStream(newFile);
+                    int len;
+                    while ((len = zis.read(buffer)) > 0) {
+                        fos.write(buffer, 0, len);
+                    }
+                    fos.close();
+                }
+                zipEntry = zis.getNextEntry();
+            }
+            zis.closeEntry();
+            zis.close();
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
+        File destFile = new File(destinationDir, zipEntry.getName());
+
+        String destDirPath = destinationDir.getCanonicalPath();
+        String destFilePath = destFile.getCanonicalPath();
+
+        if (!destFilePath.startsWith(destDirPath + File.separator)) {
+            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
+        }
+
+        return destFile;
     }
 
     @AfterAll

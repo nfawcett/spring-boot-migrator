@@ -1,2 +1,6 @@
+testcode/reposilite-test/user.home/**
+!testcode/reposilite-test/user.home/.m2/settings.xml.template
+!testcode/reposilite-test/user.home/.m2/settings-security.xml
 testcode/reposilite-test/reposilite-data/**
 !testcode/reposilite-test/reposilite-data/shared.configuration.json
+/testcode/reposilite-test/user.home/apache-maven-3.9.5/
