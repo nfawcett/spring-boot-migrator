@@ -1,0 +1,17 @@
+package com.example.dependency;
+/**
+ * Hello world!
+ *
+ */
+public class DependencyClass
+{
+    private String value;
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+}
