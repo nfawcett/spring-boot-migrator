@@ -15,14 +15,10 @@
  */
 package org.springframework.sbm;
 
-import net.sf.saxon.trans.SymbolicName;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.shared.invoker.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
-import org.openrewrite.SourceFile;
-import org.openrewrite.java.JavaParser;
-import org.openrewrite.java.internal.JavaTypeCache;
 import org.openrewrite.java.marker.JavaSourceSet;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
@@ -44,11 +40,8 @@ import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -95,8 +88,96 @@ public class PrivateArtifactRepositoryTest {
         originalUserHome = System.getProperty("user.home");
         newUserHome = Path.of(".").resolve(TESTCODE_DIR + "/user.home").toAbsolutePath().normalize().toString();
         System.setProperty("user.home", newUserHome);
+        installMavenForTestIfNotExists(tempDir);
+    }
 
-        // download Maven
+    @AfterAll
+    static void afterAll() {
+        System.setProperty("user.home", originalUserHome);
+    }
+
+    @Test
+    @Order(1)
+    @DisplayName("Maven settings should be read")
+//    @SetSystemProperty(key = "user.home", value = "testcode/reposilite-test/user.home")
+    void mavenSettingsShouldBeRead() throws IOException, MavenInvocationException, InterruptedException {
+        Integer port = reposilite.getMappedPort(8080);
+        System.out.println("Reposilite: http://localhost:" + port + " login with user:secret");
+
+        // create pom.xml with correct port for dependency-project
+        Path dependencyPomTmplPath = Path.of(TESTCODE_DIR + "/dependency-project/pom.xml.template").toAbsolutePath().normalize();
+        Path dependencyPomPath = renderPomXml(port, dependencyPomTmplPath);
+
+        // create pom.xml with correct port for dependent-project
+        Path dependentPomTmplPath = Path.of(TESTCODE_DIR + "/dependent-project/pom.xml.template").toAbsolutePath().normalize();
+        Path dependentPomPath = renderPomXml(port, dependentPomTmplPath);
+
+        // adjust path in settings.xml
+        Path settingsXmlTmplPath = Path.of("./").resolve(newUserHome + "/.m2/settings.xml.template").toAbsolutePath().normalize();
+        Path settingsXmlPath = renderSettingsXml(newUserHome, settingsXmlTmplPath);
+
+        deployDependency(dependencyPomPath);
+        // the project 'testcode/reposilite-test/reposilite-test' has been deployed to reposilite
+
+        InvocationRequest request = new DefaultInvocationRequest();
+        request.setPomFile(dependentPomPath.toFile());
+        request.setShowErrors(true);
+        request.setUserSettingsFile(Path.of(TESTCODE_DIR + "/user.home/.m2/settings.xml").toFile());
+        request.setGoals(List.of("-v", "clean", "package"));
+        request.setLocalRepositoryDirectory(localMavenRepository);
+        request.setBatchMode(true);
+        Invoker invoker = new DefaultInvoker();
+        invoker.setMavenHome(Path.of(TESTCODE_DIR + "/user.home/apache-maven-3.9.5").toFile());
+        InvocationResult result = invoker.execute(request);
+        if (result.getExitCode() != 0) {
+            if (result.getExecutionException() != null) {
+                fail("Maven clean package failed.", result.getExecutionException());
+            } else {
+                fail("Maven  clean package. Exit code: " + result.getExitCode());
+            }
+        }
+
+        clearDependencyFromLocalMavenRepo();
+        verifyDependenciesFromPrivateRepoWereResolved();
+    }
+
+    //    @Test
+//    @Order(2)
+
+    @DisplayName("verify dependencies from private repo were resolved")
+    void verifyDependenciesFromPrivateRepoWereResolved() {
+        // verify dependency does not exist in local Maven repo
+        Path dependencyArtifactDir = dependencyPathInLocalMavenRepo.getParent();
+        assertThat(Files.isDirectory(dependencyArtifactDir)).isTrue();
+        assertThat(dependencyArtifactDir.toFile().listFiles()).isEmpty();
+
+        // scan a project that depends on this dependency
+        Path migrateApplication = Path.of(TESTCODE_DIR + "/dependent-project");
+        RewriteProjectParsingResult parsingResult = parser.parse(migrateApplication);
+
+        // verify dependency was downloaded
+        Path snapshotDir = dependencyPathInLocalMavenRepo.resolve("1.0-SNAPSHOT");
+        assertThat(snapshotDir).isDirectory();
+        assertThat(Arrays.stream(snapshotDir.toFile().listFiles()).map(f -> f.getName()).findFirst().get()).matches("dependency-project-1.0-.*\\.jar");
+
+        // verify that DependencyClass type can be resolved
+        J.CompilationUnit cu = (J.CompilationUnit) parsingResult.sourceFiles().stream().filter(s -> s.getSourcePath().toFile().getName().endsWith(".java")).findFirst().get();
+        List<String> fqClassesInUse = cu.getTypesInUse().getTypesInUse().stream().filter(JavaType.FullyQualified.class::isInstance).map(JavaType.FullyQualified.class::cast).map(JavaType.FullyQualified::getFullyQualifiedName).toList();
+
+        // DependencyClass must be in list of used types
+        assertThat(fqClassesInUse).contains(DEPENDENCY_CLASS_FQNAME);
+
+        // type should be on classpath
+        List<String> classpathFqNames = cu.getMarkers().findFirst(JavaSourceSet.class).get().getClasspath().stream().map(fqn -> fqn.getFullyQualifiedName()).toList();
+        assertThat(classpathFqNames).contains(DEPENDENCY_CLASS_FQNAME);
+
+        // Type of member should be resolvable
+        J.ClassDeclaration classDeclaration = cu.getClasses().get(0);
+        JavaType.Class type = (JavaType.Class) ((J.VariableDeclarations) classDeclaration.getBody().getStatements().get(0)).getType();
+        assertThat(type.getFullyQualifiedName()).isEqualTo(DEPENDENCY_CLASS_FQNAME);
+    }
+
+    private static void installMavenForTestIfNotExists(Path tempDir) {
         if (!Path.of("./testcode/reposilite-test/user.home/apache-maven-3.9.5/bin/mvn").toFile().exists()) {
             String mavenDownloadUrl = "https://dlcdn.apache.org/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.zip";
             try {
@@ -168,91 +249,6 @@ public class PrivateArtifactRepositoryTest {
         }
 
         return destFile;
-    }
-
-    @AfterAll
-    static void afterAll() {
-        System.setProperty("user.home", originalUserHome);
-    }
-
-    @Test
-    @Order(1)
-    @DisplayName("Maven settings should be read")
-//    @SetSystemProperty(key = "user.home", value = "testcode/reposilite-test/user.home")
-    void mavenSettingsShouldBeRead() throws IOException, MavenInvocationException, InterruptedException {
-        Integer port = reposilite.getMappedPort(8080);
-        System.out.println("Reposilite: http://localhost:" + port + " login with user:secret");
-
-        // create pom.xml with correct port for dependency-project
-        Path dependencyPomTmplPath = Path.of(TESTCODE_DIR + "/dependency-project/pom.xml.template").toAbsolutePath().normalize();
-        Path dependencyPomPath = renderPomXml(port, dependencyPomTmplPath);
-
-        // create pom.xml with correct port for dependent-project
-        Path dependentPomTmplPath = Path.of(TESTCODE_DIR + "/dependent-project/pom.xml.template").toAbsolutePath().normalize();
-        Path dependentPomPath = renderPomXml(port, dependentPomTmplPath);
-
-        // adjust path in settings.xml
-        Path settingsXmlTmplPath = Path.of("./").resolve(newUserHome + "/.m2/settings.xml.template").toAbsolutePath().normalize();
-        Path settingsXmlPath = renderSettingsXml(newUserHome, settingsXmlTmplPath);
-
-        deployDependency(dependencyPomPath);
-        // the project 'testcode/reposilite-test/reposilite-test' has been deployed to reposilite
-
-        InvocationRequest request = new DefaultInvocationRequest();
-        request.setPomFile(dependentPomPath.toFile());
-        request.setShowErrors(true);
-        request.setUserSettingsFile(Path.of(TESTCODE_DIR + "/user.home/.m2/settings.xml").toFile());
-        request.setGoals(List.of("-v", "clean", "package"));
-        request.setLocalRepositoryDirectory(localMavenRepository);
-        request.setBatchMode(true);
-        Invoker invoker = new DefaultInvoker();
-        invoker.setMavenHome(Path.of(TESTCODE_DIR + "/user.home/apache-maven-3.9.5").toFile());
-        InvocationResult result = invoker.execute(request);
-        if (result.getExitCode() != 0) {
-            if (result.getExecutionException() != null) {
-                fail("Maven clean package failed.", result.getExecutionException());
-            } else {
-                fail("Maven  clean package. Exit code: " + result.getExitCode());
-            }
-        }
-
-        clearDependencyFromLocalMavenRepo();
-        verifyDependenciesFromPrivateRepoWereResolved();
-    }
-
-    //    @Test
-//    @Order(2)
-    @DisplayName("verify dependencies from private repo were resolved")
-    void verifyDependenciesFromPrivateRepoWereResolved() {
-        // verify dependency does not exist in local Maven repo
-        Path dependencyArtifactDir = dependencyPathInLocalMavenRepo.getParent();
-        assertThat(Files.isDirectory(dependencyArtifactDir)).isTrue();
-        assertThat(dependencyArtifactDir.toFile().listFiles()).isEmpty();
-
-        // scan a project that depends on this dependency
-        Path migrateApplication = Path.of(TESTCODE_DIR + "/dependent-project");
-        RewriteProjectParsingResult parsingResult = parser.parse(migrateApplication);
-
-        // verify dependency was downloaded
-        Path snapshotDir = dependencyPathInLocalMavenRepo.resolve("1.0-SNAPSHOT");
-        assertThat(snapshotDir).isDirectory();
-        assertThat(Arrays.stream(snapshotDir.toFile().listFiles()).map(f -> f.getName()).findFirst().get()).matches("dependency-project-1.0-.*\\.jar");
-
-        // verify that DependencyClass type can be resolved
-        J.CompilationUnit cu = (J.CompilationUnit) parsingResult.sourceFiles().stream().filter(s -> s.getSourcePath().toFile().getName().endsWith(".java")).findFirst().get();
-        List<String> fqClassesInUse = cu.getTypesInUse().getTypesInUse().stream().filter(JavaType.FullyQualified.class::isInstance).map(JavaType.FullyQualified.class::cast).map(JavaType.FullyQualified::getFullyQualifiedName).toList();
-
-        // DependencyClass must be in list of used types
-        assertThat(fqClassesInUse).contains(DEPENDENCY_CLASS_FQNAME);
-
-        // type should be on classpath
-        List<String> classpathFqNames = cu.getMarkers().findFirst(JavaSourceSet.class).get().getClasspath().stream().map(fqn -> fqn.getFullyQualifiedName()).toList();
-        assertThat(classpathFqNames).contains(DEPENDENCY_CLASS_FQNAME);
-
-        // Type of member should be resolvable
-        J.ClassDeclaration classDeclaration = cu.getClasses().get(0);
-        JavaType.Class type = (JavaType.Class) ((J.VariableDeclarations) classDeclaration.getBody().getStatements().get(0)).getType();
-        assertThat(type.getFullyQualifiedName()).isEqualTo(DEPENDENCY_CLASS_FQNAME);
     }
 
 
