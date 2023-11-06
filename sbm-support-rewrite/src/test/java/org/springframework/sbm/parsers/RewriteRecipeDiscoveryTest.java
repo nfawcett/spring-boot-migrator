@@ -17,6 +17,7 @@ package org.springframework.sbm.parsers;
 
 import com.example.recipes.DummyRecipe;
 import io.example.recipes.AnotherDummyRecipe;
+import net.sf.saxon.functions.Remove;
 import org.assertj.core.data.Index;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeAll;
@@ -137,7 +138,8 @@ class RewriteRecipeDiscoveryTest {
     void loadRecipeFromClasspath2() {
         String[] acceptPackages = {}; // "com.example"
         ClasspathScanningLoader loader = new ClasspathScanningLoader(new Properties(), acceptPackages);
-        Path jarPath = Path.of("/Users/fkrueger/.m2/repository/org/openrewrite/recipe/rewrite-spring/4.36.0/rewrite-spring-4.36.0.jar");// Path.of(System.getProperty("user.home")).resolve(".m2").resolve("repository/org/springframework/sbm/openrewrite-dummy-recipe/1.0-SNAPSHOT/openrewrite-dummy-recipe-1.0-SNAPSHOT.jar");
+        String path = System.getProperty("user.home");
+        Path jarPath = Path.of(path + "/.m2/repository/org/openrewrite/recipe/rewrite-spring/4.36.0/rewrite-spring-4.36.0.jar");// Path.of(System.getProperty("user.home")).resolve(".m2").resolve("repository/org/springframework/sbm/openrewrite-dummy-recipe/1.0-SNAPSHOT/openrewrite-dummy-recipe-1.0-SNAPSHOT.jar");
 
 
         ClasspathScanningLoader classpathScanningLoader = new ClasspathScanningLoader(jarPath, new Properties(), Set.of(loader), getClass().getClassLoader());
