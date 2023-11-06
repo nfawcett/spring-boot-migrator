@@ -91,9 +91,9 @@ public class ParserParityTestHelper {
 
 
         // Number of parsed sources should always be the same
-        assertThat(comparingParserResult.sourceFiles().size())
+        assertThat(testedParserResult.sourceFiles().size())
                 .as(renderErrorMessage(comparingParserResult, testedParserResult))
-                .isEqualTo(testedParserResult.sourceFiles().size());
+                .isEqualTo(comparingParserResult.sourceFiles().size());
 
         // The paths of sources should be the same
         List<String> comparingResultPaths = comparingParserResult.sourceFiles().stream().map(sf -> baseDir.resolve(sf.getSourcePath()).toAbsolutePath().normalize().toString()).toList();
@@ -144,7 +144,7 @@ public class ParserParityTestHelper {
             SoftAssertions softAssertions = new SoftAssertions();
 
             // Compare
-            assertThat(comparingMarkersList.get(0))
+            assertThat(testedMarkersList.get(0))
                     .usingRecursiveComparison()
                     .ignoringCollectionOrderInFields("parent.modules")
                     .ignoringFields(
@@ -155,7 +155,7 @@ public class ParserParityTestHelper {
                             UUID.class,
                             // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/880
                             MavenSettings.class)
-                    .isEqualTo(testedMarkersList.get(0));
+                    .isEqualTo(comparingMarkersList.get(0));
 
 
             comparingMarkersList.forEach(comparingMarker -> {
@@ -184,7 +184,7 @@ public class ParserParityTestHelper {
                 List<String> comparingClasspath = comparingMarkers.findFirst(JavaSourceSet.class).get().getClasspath().stream().map(JavaType.FullyQualified::getFullyQualifiedName).toList();
                 List<String> testedClasspath = testedMarkers.findFirst(JavaSourceSet.class).get().getClasspath().stream().map(JavaType.FullyQualified::getFullyQualifiedName).toList();
 
-                assertThat(comparingClasspath.size()).isEqualTo(testedClasspath.size());
+                assertThat(testedClasspath.size()).isEqualTo(comparingClasspath.size());
 
                 assertThat(comparingClasspath)
                         .withFailMessage(() -> {
