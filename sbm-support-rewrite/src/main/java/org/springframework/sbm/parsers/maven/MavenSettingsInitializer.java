@@ -20,8 +20,10 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.maven.MavenExecutionContextView;
 import org.openrewrite.maven.MavenSettings;
+import org.openrewrite.maven.tree.MavenRepository;
 import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.core.io.Resource;
+import org.springframework.sbm.scopes.ProjectMetadata;
 import org.springframework.sbm.utils.ResourceUtil;
 import org.springframework.stereotype.Component;
 
@@ -37,18 +39,22 @@ public class MavenSettingsInitializer {
 
     private final MavenPasswordDecrypter mavenPasswordDecrypter;
     private final ExecutionContext executionContext;
+    private final ProjectMetadata projectMetadata;
     /**
      * @deprecated initialization in ExecutionoContext is done in ProjectParser
      */
     public void initializeMavenSettings() {
+        String repo = "file://" + Path.of(System.getProperty("user.home")).resolve(".m2/repository") + "/";
+        MavenSettings mavenSettings = new MavenSettings(repo, null, null, null, null);
         // Read .m2/settings.xml
         // TODO: Add support for global Maven settings (${maven.home}/conf/settings.xml).
-        MavenExecutionContextView mavenExecutionContextView = MavenExecutionContextView.view(executionContext);
         Path mavenSettingsFile = Path.of(System.getProperty("user.home")).resolve(".m2/settings.xml");
+        MavenExecutionContextView mavenExecutionContextView = MavenExecutionContextView.view(executionContext);
         if (Files.exists(mavenSettingsFile)) {
-            MavenSettings mavenSettings = MavenSettings.parse(mavenSettingsFile, mavenExecutionContextView);
-            mavenExecutionContextView.setMavenSettings(mavenSettings);
+            mavenSettings = MavenSettings.parse(mavenSettingsFile, mavenExecutionContextView);
         }
+        mavenExecutionContextView.setMavenSettings(mavenSettings);
+        projectMetadata.setMavenSettings(mavenSettings);
     }
 
     public MavenSettings initializeMavenSettings(Resource mavenSettingsFile, Path securitySettingsFilePath) {

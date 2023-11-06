@@ -52,7 +52,7 @@
         "storageProvider": {
           "type": "fs",
           "quota": "100%",
-          "mount": "./repositories/snapshots"
+          "mount": "./snapshots"
         },
         "storagePolicy": "PRIORITIZE_UPSTREAM_METADATA",
         "proxied": []

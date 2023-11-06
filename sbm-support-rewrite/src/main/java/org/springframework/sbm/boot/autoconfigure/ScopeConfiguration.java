@@ -19,6 +19,7 @@ import org.openrewrite.ExecutionContext;
 import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.java.AddOrUpdateAnnotationAttribute;
 import org.openrewrite.maven.MavenExecutionContextView;
+import org.openrewrite.maven.MavenSettings;
 import org.openrewrite.maven.cache.MavenPomCache;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -28,6 +29,8 @@ import org.springframework.sbm.scopes.ExecutionScope;
 import org.springframework.sbm.scopes.ProjectMetadata;
 import org.springframework.sbm.scopes.ScanScope;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Supplier;
 
 /**
@@ -61,7 +64,8 @@ public class ScopeConfiguration {
     @Bean
     @org.springframework.sbm.scopes.annotations.ScanScope
     ProjectMetadata projectMetadata() {
-        return new ProjectMetadata();
+        ProjectMetadata projectMetadata = new ProjectMetadata();
+        return projectMetadata;
     }
 
     @Bean
@@ -74,9 +78,9 @@ public class ScopeConfiguration {
     @org.springframework.sbm.scopes.annotations.ScanScope
     ExecutionContext executionContext(ProjectMetadata projectMetadata, Supplier<ExecutionContext> executionContextSupplier, MavenPomCache mavenPomCache) {
         ExecutionContext executionContext = executionContextSupplier.get();
-        MavenExecutionContextView contextView = MavenExecutionContextView.view(executionContext);
-        contextView.setMavenSettings(projectMetadata.getMavenSettings());
-        contextView.setPomCache(mavenPomCache);
+//        MavenExecutionContextView contextView = MavenExecutionContextView.view(executionContext);
+//        contextView.setMavenSettings(projectMetadata.getMavenSettings());
+//        contextView.setPomCache(mavenPomCache);
         return executionContext;
     }
 

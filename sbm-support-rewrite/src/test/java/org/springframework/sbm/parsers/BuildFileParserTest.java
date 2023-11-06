@@ -32,6 +32,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.sbm.parsers.maven.BuildFileParser;
 import org.springframework.sbm.parsers.maven.MavenPasswordDecrypter;
 import org.springframework.sbm.parsers.maven.MavenSettingsInitializer;
+import org.springframework.sbm.scopes.ProjectMetadata;
 import org.springframework.sbm.test.util.DummyResource;
 import org.springframework.sbm.utils.ResourceUtil;
 
@@ -110,7 +111,7 @@ class BuildFileParserTest {
         @BeforeEach
         void beforeEach() throws PlexusCipherException {
             ExecutionContext executionContext = new InMemoryExecutionContext(t -> {throw new RuntimeException(t);});
-            sut = new BuildFileParser(new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext));
+            sut = new BuildFileParser(new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext, new ProjectMetadata()));
         }
 
         @Test

@@ -25,6 +25,7 @@ import org.sonatype.plexus.components.cipher.DefaultPlexusCipher;
 import org.sonatype.plexus.components.cipher.PlexusCipherException;
 import org.sonatype.plexus.components.sec.dispatcher.DefaultSecDispatcher;
 import org.springframework.sbm.parsers.RewriteExecutionContext;
+import org.springframework.sbm.scopes.ProjectMetadata;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -52,7 +53,7 @@ class MavenSettingsInitializerTest {
     void mavenParserMustAdhereToSettingsXmlTest() throws URISyntaxException, PlexusCipherException {
 
         RewriteExecutionContext executionContext = new RewriteExecutionContext();
-        MavenSettingsInitializer sut = new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext);
+        MavenSettingsInitializer sut = new MavenSettingsInitializer(new MavenPasswordDecrypter(new DefaultSecDispatcher(new DefaultPlexusCipher())), executionContext, new ProjectMetadata());
         sut.initializeMavenSettings();
         MavenExecutionContextView mavenExecutionContextView = MavenExecutionContextView.view(executionContext);
 

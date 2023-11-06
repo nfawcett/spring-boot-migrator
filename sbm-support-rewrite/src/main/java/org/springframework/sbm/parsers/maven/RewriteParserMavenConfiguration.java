@@ -68,7 +68,7 @@ public class RewriteParserMavenConfiguration {
         try {
             SecDispatcher secDispatcher = new DefaultSecDispatcher(new DefaultPlexusCipher());
             MavenPasswordDecrypter mavenPasswordDecrypter = new MavenPasswordDecrypter(secDispatcher);
-            return new MavenSettingsInitializer(mavenPasswordDecrypter, executionContext);
+            return new MavenSettingsInitializer(mavenPasswordDecrypter, executionContext, new ProjectMetadata());
         } catch (PlexusCipherException e) {
             throw new RuntimeException(e);
         }

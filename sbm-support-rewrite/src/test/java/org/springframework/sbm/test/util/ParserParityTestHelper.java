@@ -15,6 +15,7 @@
  */
 package org.springframework.sbm.test.util;
 
+import org.assertj.core.api.SoftAssertions;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.SourceFile;
 import org.openrewrite.java.marker.JavaSourceSet;
@@ -22,6 +23,9 @@ import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.marker.Marker;
 import org.openrewrite.marker.Markers;
 import org.openrewrite.maven.MavenSettings;
+import org.openrewrite.maven.tree.MavenResolutionResult;
+import org.openrewrite.maven.tree.ResolvedDependency;
+import org.openrewrite.maven.tree.Scope;
 import org.openrewrite.style.Style;
 import org.springframework.sbm.parsers.ParserProperties;
 import org.springframework.sbm.parsers.RewriteProjectParsingResult;
@@ -134,23 +138,43 @@ public class ParserParityTestHelper {
             Markers testedMarkers = curTestedSourceFile.getMarkers();
             List<Marker> testedMarkersList = testedMarkers.getMarkers();
 
-            assertThat(comparingMarkersList)
+            testedMarkersList.sort(Comparator.comparing(o -> o.getClass().getName()));
+            comparingMarkersList.sort(Comparator.comparing(o -> o.getClass().getName()));
+
+            SoftAssertions softAssertions = new SoftAssertions();
+
+            // Compare
+            assertThat(comparingMarkersList.get(0))
                     .usingRecursiveComparison()
-                    .withStrictTypeChecking()
-                    .ignoringCollectionOrder()
+                    .ignoringCollectionOrderInFields("parent.modules")
                     .ignoringFields(
-                            // classpath compared further down
-                            "classpath",
-                            // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/982
-                            "styles"
+                            "dependencies",
+                            "parent.modules"
                     )
                     .ignoringFieldsOfTypes(
                             UUID.class,
                             // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/880
-                            MavenSettings.class,
-                            // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/982
-                            Style.class)
-                    .isEqualTo(testedMarkersList);
+                            MavenSettings.class)
+                    .isEqualTo(testedMarkersList.get(0));
+
+
+            comparingMarkersList.forEach(comparingMarker -> {
+                int i = comparingMarkersList.indexOf(comparingMarker);
+                Marker testedMarker = testedMarkersList.get(i);
+
+                assertThat(testedMarker).isInstanceOf(comparingMarker.getClass());
+
+                if(MavenResolutionResult.class.isInstance(testedMarker)) {
+                    MavenResolutionResult comparing = (MavenResolutionResult) comparingMarker;
+                    MavenResolutionResult tested = (MavenResolutionResult) testedMarker;
+                    compareMavenResolutionResultMarker(softAssertions, comparing, tested);
+                } else {
+                    compareMarker(softAssertions, comparingMarker, testedMarker);
+                }
+
+            });
+
+            softAssertions.assertAll();
 
             if (curComparingSourceFile.getMarkers().findFirst(JavaSourceSet.class).isPresent()) {
                 // Tested parser must have JavaSourceSet marker when comparing parser has it
@@ -186,6 +210,71 @@ public class ParserParityTestHelper {
             }
 
         }
+    }
+
+    private void compareMarker(SoftAssertions softAssertions, Marker comparingMarker, Marker testedMarker) {
+        softAssertions.assertThat(testedMarker)
+                .usingRecursiveComparison()
+                .withStrictTypeChecking()
+                .ignoringCollectionOrder()
+                .ignoringFields(
+                        // classpath compared further down
+                        "classpath",
+                        // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/982
+                        "styles"
+                )
+                .ignoringFieldsOfTypes(
+                        UUID.class,
+                        // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/880
+                        MavenSettings.class,
+                        // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/982
+                        Style.class)
+                .isEqualTo(comparingMarker);
+    }
+
+    private void compareMavenResolutionResultMarker(SoftAssertions softAssertions, MavenResolutionResult comparing, MavenResolutionResult tested) {
+        softAssertions.assertThat(tested)
+                .usingRecursiveComparison()
+                .ignoringFields(
+                        "modules", // TODO: extra test
+                        "dependencies", // TODO: extra test
+                        "parent.modules" // TODO: extra test
+                )
+                .ignoringFieldsOfTypes(
+                        UUID.class,
+                        // FIXME: https://github.com/spring-projects-experimental/spring-boot-migrator/issues/880
+                        MavenSettings.class)
+                .isEqualTo(comparing);
+
+        List<MavenResolutionResult> comparingModules = comparing.getModules();
+        List<MavenResolutionResult> testedModules = tested.getModules();
+
+
+        // bring modules in same order
+        comparingModules.sort(Comparator.comparing(o -> o.getPom().getGav().toString()));
+        testedModules.sort(Comparator.comparing(o -> o.getPom().getGav().toString()));
+        // test modules
+        comparingModules.forEach(cm -> {
+            MavenResolutionResult testedMavenResolutionResult = testedModules.get(comparingModules.indexOf(cm));
+            compareMavenResolutionResultMarker(softAssertions, cm, testedMavenResolutionResult);
+        });
+
+        Set<Scope> keys = comparing.getDependencies().keySet();
+        keys.forEach(k -> {
+            List<ResolvedDependency> comparingDependencies = comparing.getDependencies().get(k);
+            List<ResolvedDependency> testedDependencies = tested.getDependencies().get(k);
+
+            // same order
+            comparingDependencies.sort(Comparator.comparing(o -> o.getGav().toString()));
+            testedDependencies.sort(Comparator.comparing(o -> o.getGav().toString()));
+
+            softAssertions.assertThat(testedDependencies)
+                    .usingRecursiveComparison()
+                    .ignoringFieldsOfTypes(
+                            UUID.class
+                    )
+                    .isEqualTo(comparingDependencies);
+        });
     }
 
     public ParserParityTestHelper withExecutionContextForComparingParser(ExecutionContext executionContext) {

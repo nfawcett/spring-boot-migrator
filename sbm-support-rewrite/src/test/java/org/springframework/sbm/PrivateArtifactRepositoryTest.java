@@ -19,27 +19,42 @@ import org.apache.commons.io.FileUtils;
 import org.apache.maven.shared.invoker.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.junitpioneer.jupiter.SetSystemProperty;
+import org.mockito.Mockito;
 import org.openrewrite.java.marker.JavaSourceSet;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
+import org.openrewrite.maven.cache.LocalMavenArtifactCache;
+import org.openrewrite.maven.cache.MavenArtifactCache;
+import org.openrewrite.maven.tree.MavenRepository;
+import org.powermock.reflect.Whitebox;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.sbm.boot.autoconfigure.SbmSupportRewriteConfiguration;
 import org.springframework.sbm.parsers.RewriteProjectParser;
 import org.springframework.sbm.parsers.RewriteProjectParsingResult;
 import org.springframework.sbm.parsers.maven.RewriteMavenProjectParser;
 import org.springframework.sbm.parsers.maven.SbmTestConfiguration;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.FileSystemUtils;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -53,20 +68,71 @@ import static org.assertj.core.api.Fail.fail;
 /**
  * @author Fabian Krüger
  */
-@SpringBootTest(classes = {SbmSupportRewriteConfiguration.class, SbmTestConfiguration.class})
+@SpringBootTest(classes = {MyTEstCOnfig.class, SbmSupportRewriteConfiguration.class, SbmTestConfiguration.class})
+@DirtiesContext // clear beans caching Maven settings
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class PrivateArtifactRepositoryTest {
+
+
+    private static MavenRepository originalMavenRepository;
+    // localRepository.getUri() will differ from '"file:" + userHome + "/.m2/repository/"' because
+    // MavenRepository.MAVEN_LOCAL_DEFAULT gets returned and this field is statically initialized.
+    // For this test it means that running the test in isolation succeeds but running it in combination
+    // with a test that loads MavenRepository before 'user.home' was changed in this test, it fails.
+    // And maybe even worse, running this test before others would set the local maven repository to the
+    // dummy dir used in this test.
+    //
+    // To prevent this it will be set to the original settings with this line:
+    MavenRepository mavenLocalDefault = MavenRepository.MAVEN_LOCAL_DEFAULT;
+
     public static final String $USER_HOME_PLACEHOLDER = "${user.home}";
     public static final String $PORT_PLACEHOLDER = "${port}";
     public static final String TESTCODE_DIR = "testcode/reposilite-test";
     public static final String DEPENDENCY_CLASS_FQNAME = "com.example.dependency.DependencyClass";
+
     @Container
     static GenericContainer reposilite = new GenericContainer(DockerImageName.parse("dzikoysk/reposilite:3.4.10"))
             .withExposedPorts(8080)
             .withCopyFileToContainer(
                     MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-data/shared.configuration.json"),
                     "/app/data/shared.configuration.json"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml.md5"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml.md5"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml.sha1"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/maven-metadata.xml.sha1"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar.md5"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar.md5"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar.sha1"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.jar.sha1"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom.md5"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom.md5"
+            )
+            .withCopyFileToContainer(
+                    MountableFile.forHostPath("./" + TESTCODE_DIR + "/reposilite-test/reposilite-data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom.sha1"),
+                    "/app/data/repositories/snapshots/com/example/dependency/dependency-project/1.0-SNAPSHOT/dependency-project-1.0-20231105.102337-1.pom.sha1"
             )
             // Create temp user 'user' with password 'secret'
             .withEnv("REPOSILITE_OPTS", "--token user:secret --shared-config shared.configuration.json");
@@ -89,17 +155,20 @@ public class PrivateArtifactRepositoryTest {
         newUserHome = Path.of(".").resolve(TESTCODE_DIR + "/user.home").toAbsolutePath().normalize().toString();
         System.setProperty("user.home", newUserHome);
         installMavenForTestIfNotExists(tempDir);
+        originalMavenRepository = MavenRepository.MAVEN_LOCAL_DEFAULT;
+        MavenRepository mavenRepository = new MavenRepository("local", new File(System.getProperty("user.home") + "/.m2/repository").toURI().toString(), "true", "true", true, null, null, false);
+        Whitebox.setInternalState(MavenRepository.class, "MAVEN_LOCAL_DEFAULT", mavenRepository);
     }
 
     @AfterAll
     static void afterAll() {
         System.setProperty("user.home", originalUserHome);
+        Whitebox.setInternalState(MavenRepository.class, "MAVEN_LOCAL_DEFAULT", originalMavenRepository);
     }
 
     @Test
     @Order(1)
     @DisplayName("Maven settings should be read")
-//    @SetSystemProperty(key = "user.home", value = "testcode/reposilite-test/user.home")
     void mavenSettingsShouldBeRead() throws IOException, MavenInvocationException, InterruptedException {
         Integer port = reposilite.getMappedPort(8080);
         System.out.println("Reposilite: http://localhost:" + port + " login with user:secret");
@@ -119,13 +188,17 @@ public class PrivateArtifactRepositoryTest {
         deployDependency(dependencyPomPath);
         // the project 'testcode/reposilite-test/reposilite-test' has been deployed to reposilite
 
+        clearDependencyFromLocalMavenRepo();
+
         InvocationRequest request = new DefaultInvocationRequest();
         request.setPomFile(dependentPomPath.toFile());
         request.setShowErrors(true);
         request.setUserSettingsFile(Path.of(TESTCODE_DIR + "/user.home/.m2/settings.xml").toFile());
-        request.setGoals(List.of("-v", "clean", "package"));
+        request.setGoals(List.of("clean", "package"));
         request.setLocalRepositoryDirectory(localMavenRepository);
         request.setBatchMode(true);
+        request.setGlobalChecksumPolicy(InvocationRequest.CheckSumPolicy.Warn);
+        request.setOutputHandler(s -> System.out.println(s));
         Invoker invoker = new DefaultInvoker();
         invoker.setMavenHome(Path.of(TESTCODE_DIR + "/user.home/apache-maven-3.9.5").toFile());
         InvocationResult result = invoker.execute(request);
@@ -148,7 +221,7 @@ public class PrivateArtifactRepositoryTest {
     void verifyDependenciesFromPrivateRepoWereResolved() {
         // verify dependency does not exist in local Maven repo
         Path dependencyArtifactDir = dependencyPathInLocalMavenRepo.getParent();
-        assertThat(Files.isDirectory(dependencyArtifactDir)).isTrue();
+        assertThat(dependencyArtifactDir).isDirectory();
         assertThat(dependencyArtifactDir.toFile().listFiles()).isEmpty();
 
         // scan a project that depends on this dependency
@@ -156,7 +229,7 @@ public class PrivateArtifactRepositoryTest {
         RewriteProjectParsingResult parsingResult = parser.parse(migrateApplication);
 
         // verify dependency was downloaded
-        Path snapshotDir = dependencyPathInLocalMavenRepo.resolve("1.0-SNAPSHOT");
+        Path snapshotDir = dependencyPathInLocalMavenRepo.resolve("1.0-SNAPSHOT").toAbsolutePath().normalize();
         assertThat(snapshotDir).isDirectory();
         assertThat(Arrays.stream(snapshotDir.toFile().listFiles()).map(f -> f.getName()).findFirst().get()).matches("dependency-project-1.0-.*\\.jar");
 
@@ -302,4 +375,16 @@ public class PrivateArtifactRepositoryTest {
         }
     }
 
+}
+
+
+@Configuration
+class MyTEstCOnfig {
+    @Bean
+    MavenArtifactCache mavenArtifactCache() {
+        MavenArtifactCache mavenArtifactCache = new LocalMavenArtifactCache(Paths.get(System.getProperty("user.home"), ".m2", "repository")).orElse(
+                new LocalMavenArtifactCache(Paths.get(System.getProperty("user.home"), ".rewrite", "cache", "artifacts"))
+        );
+        return mavenArtifactCache;
+    }
 }
