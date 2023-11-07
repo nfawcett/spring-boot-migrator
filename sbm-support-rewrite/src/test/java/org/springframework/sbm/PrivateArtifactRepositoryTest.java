@@ -19,8 +19,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.maven.shared.invoker.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
-import org.junitpioneer.jupiter.SetSystemProperty;
-import org.mockito.Mockito;
 import org.openrewrite.java.marker.JavaSourceSet;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
@@ -29,9 +27,7 @@ import org.openrewrite.maven.cache.MavenArtifactCache;
 import org.openrewrite.maven.tree.MavenRepository;
 import org.powermock.reflect.Whitebox;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.sbm.boot.autoconfigure.SbmSupportRewriteConfiguration;
@@ -40,17 +36,14 @@ import org.springframework.sbm.parsers.RewriteProjectParsingResult;
 import org.springframework.sbm.parsers.maven.RewriteMavenProjectParser;
 import org.springframework.sbm.parsers.maven.SbmTestConfiguration;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.FileSystemUtils;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.images.builder.Transferable;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -68,7 +61,7 @@ import static org.assertj.core.api.Fail.fail;
 /**
  * @author Fabian Krüger
  */
-@SpringBootTest(classes = {MyTEstCOnfig.class, SbmSupportRewriteConfiguration.class, SbmTestConfiguration.class})
+@SpringBootTest(classes = {MyTestConfig.class, SbmSupportRewriteConfiguration.class, SbmTestConfiguration.class})
 @DirtiesContext // clear beans caching Maven settings
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -379,7 +372,7 @@ public class PrivateArtifactRepositoryTest {
 
 
 @Configuration
-class MyTEstCOnfig {
+class MyTestConfig {
     @Bean
     MavenArtifactCache mavenArtifactCache() {
         MavenArtifactCache mavenArtifactCache = new LocalMavenArtifactCache(Paths.get(System.getProperty("user.home"), ".m2", "repository")).orElse(

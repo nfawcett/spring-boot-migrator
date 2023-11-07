@@ -29,7 +29,9 @@ import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * @author Fabian Krüger
@@ -59,23 +61,26 @@ public class ParserExecutionHelper {
 
             threadPool.submit(() -> {
                 System.out.println("Start parsing with RewriteProjectParser");
-                RewriteProjectParsingResult tmpTestedParserResult = parseWithRewriteProjectParser(baseDir, parserProperties, executionContext);
-                testedParsingResultRef.set(tmpTestedParserResult);
-                latch.countDown();
+                Supplier<RewriteProjectParsingResult> s = () -> parseWithRewriteProjectParser(baseDir, parserProperties, executionContext);
+                handleResult(latch, s, testedParsingResultRef);
             });
 
             threadPool.submit(() -> {
                 System.out.println("Start parsing with RewriteMavenProjectParser");
-                RewriteProjectParsingResult tmpComparingParserResult = parseWithComparingParser(baseDir, parserProperties, executionContext);
-                comparingParsingResultRef.set(tmpComparingParserResult);
-                latch.countDown();
+                Supplier<RewriteProjectParsingResult> s = () -> parseWithComparingParser(baseDir, parserProperties, executionContext);
+                handleResult(latch, s, comparingParsingResultRef);
             });
-
-            latch.await();
+            latch.await(60, TimeUnit.SECONDS);
             return new ParallelParsingResult(comparingParsingResultRef.get(), testedParsingResultRef.get());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void handleResult(CountDownLatch latch, Supplier<RewriteProjectParsingResult> s, AtomicReference<RewriteProjectParsingResult> ar) {
+        System.out.println("Start parsing with RewriteProjectParser");
+        ar.set(s.get());
+        latch.countDown();
     }
 
     public RewriteProjectParsingResult parseWithComparingParser(Path baseDir, ParserProperties parserProperties, ExecutionContext executionContext) {

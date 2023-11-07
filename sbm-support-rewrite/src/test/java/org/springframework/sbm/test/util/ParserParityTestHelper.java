@@ -249,7 +249,6 @@ public class ParserParityTestHelper {
         List<MavenResolutionResult> comparingModules = comparing.getModules();
         List<MavenResolutionResult> testedModules = tested.getModules();
 
-
         // bring modules in same order
         comparingModules.sort(Comparator.comparing(o -> o.getPom().getGav().toString()));
         testedModules.sort(Comparator.comparing(o -> o.getPom().getGav().toString()));
@@ -258,6 +257,8 @@ public class ParserParityTestHelper {
             MavenResolutionResult testedMavenResolutionResult = testedModules.get(comparingModules.indexOf(cm));
             compareMavenResolutionResultMarker(softAssertions, cm, testedMavenResolutionResult);
         });
+
+        System.out.println(softAssertions.assertionErrorsCollected().size() + " assertions failed so far.");
 
         Set<Scope> keys = comparing.getDependencies().keySet();
         keys.forEach(k -> {
@@ -275,6 +276,8 @@ public class ParserParityTestHelper {
                     )
                     .isEqualTo(comparingDependencies);
         });
+
+        System.out.println(softAssertions.assertionErrorsCollected().size() + " assertions failed so far.");
     }
 
     public ParserParityTestHelper withExecutionContextForComparingParser(ExecutionContext executionContext) {
