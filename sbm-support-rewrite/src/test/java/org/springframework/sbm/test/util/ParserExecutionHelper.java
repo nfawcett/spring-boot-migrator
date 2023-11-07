@@ -60,13 +60,11 @@ public class ParserExecutionHelper {
             AtomicReference<RewriteProjectParsingResult> comparingParsingResultRef = new AtomicReference<>();
 
             threadPool.submit(() -> {
-                System.out.println("Start parsing with RewriteProjectParser");
                 Supplier<RewriteProjectParsingResult> s = () -> parseWithRewriteProjectParser(baseDir, parserProperties, executionContext);
                 handleResult(latch, s, testedParsingResultRef);
             });
 
             threadPool.submit(() -> {
-                System.out.println("Start parsing with RewriteMavenProjectParser");
                 Supplier<RewriteProjectParsingResult> s = () -> parseWithComparingParser(baseDir, parserProperties, executionContext);
                 handleResult(latch, s, comparingParsingResultRef);
             });

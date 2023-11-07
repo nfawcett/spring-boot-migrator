@@ -258,8 +258,6 @@ public class ParserParityTestHelper {
             compareMavenResolutionResultMarker(softAssertions, cm, testedMavenResolutionResult);
         });
 
-        System.out.println(softAssertions.assertionErrorsCollected().size() + " assertions failed so far.");
-
         Set<Scope> keys = comparing.getDependencies().keySet();
         keys.forEach(k -> {
             List<ResolvedDependency> comparingDependencies = comparing.getDependencies().get(k);
@@ -276,8 +274,6 @@ public class ParserParityTestHelper {
                     )
                     .isEqualTo(comparingDependencies);
         });
-
-        System.out.println(softAssertions.assertionErrorsCollected().size() + " assertions failed so far.");
     }
 
     public ParserParityTestHelper withExecutionContextForComparingParser(ExecutionContext executionContext) {
