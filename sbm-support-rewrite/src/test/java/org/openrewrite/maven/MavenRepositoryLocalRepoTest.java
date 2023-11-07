@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.ExpectedToFail;
 import org.openrewrite.maven.tree.MavenRepository;
 
-import java.io.File;
+import java.net.URI;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,8 +32,16 @@ public class MavenRepositoryLocalRepoTest {
     @Test
     @DisplayName("calculate local Maven repository")
     @ExpectedToFail
-    void calculateLocalMavenRepository() {
+    void expectedLocalMavenRepository() {
         String repoPath = System.getProperty("user.home") + "/.m2/repository";
         assertThat(MavenRepository.MAVEN_LOCAL_DEFAULT.getUri()).isEqualTo("file://" + repoPath.toString());
+    }
+
+    @Test
+    @DisplayName("calculate local Maven repository")
+    void actualLocalMavenRepository() {
+        String repoPath = System.getProperty("user.home") + "/.m2/repository/";
+        assertThat(MavenRepository.MAVEN_LOCAL_DEFAULT.getUri()).isEqualTo("file:" + repoPath.toString());
+        System.out.println(URI.create(MavenRepository.MAVEN_LOCAL_DEFAULT.getUri()).toString());
     }
 }
