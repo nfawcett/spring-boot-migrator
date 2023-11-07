@@ -25,6 +25,7 @@ import org.openrewrite.marker.Markers;
 import org.openrewrite.maven.MavenSettings;
 import org.openrewrite.maven.tree.MavenResolutionResult;
 import org.openrewrite.maven.tree.ResolvedDependency;
+import org.openrewrite.maven.tree.ResolvedGroupArtifactVersion;
 import org.openrewrite.maven.tree.Scope;
 import org.openrewrite.style.Style;
 import org.springframework.sbm.parsers.ParserProperties;
@@ -272,9 +273,9 @@ public class ParserParityTestHelper {
 
             softAssertions.assertThat(testedDependencies)
                     .usingRecursiveComparison()
-                    .ignoringFieldsOfTypes(URI.class) // FIXME: Difference in URI, file:/ vs. file:///
                     .ignoringFieldsOfTypes(
-                            UUID.class
+                            UUID.class,
+                            ResolvedGroupArtifactVersion.class // FIXME: Difference in repository URI, file:/ vs. file:///
                     )
                     .isEqualTo(comparingDependencies);
         });
