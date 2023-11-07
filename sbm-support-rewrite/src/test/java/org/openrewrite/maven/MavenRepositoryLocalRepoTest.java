@@ -34,7 +34,6 @@ public class MavenRepositoryLocalRepoTest {
     @ExpectedToFail
     void calculateLocalMavenRepository() {
         String repoPath = System.getProperty("user.home") + "/.m2/repository";
-        MavenRepository MAVEN_LOCAL_DEFAULT = new MavenRepository("local", new File(repoPath).toURI().toString(), "true", "true", true, null, null, false);
-        assertThat(MAVEN_LOCAL_DEFAULT.getUri()).isEqualTo("file://" + repoPath.toString());
+        assertThat(MavenRepository.MAVEN_LOCAL_DEFAULT.getUri()).isEqualTo("file://" + repoPath.toString());
     }
 }
