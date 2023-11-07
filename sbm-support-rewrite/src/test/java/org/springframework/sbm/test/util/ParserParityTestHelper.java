@@ -273,6 +273,7 @@ public class ParserParityTestHelper {
 
             softAssertions.assertThat(testedDependencies)
                     .usingRecursiveComparison()
+                    .ignoringFields("gav.repository")
                     .ignoringFieldsOfTypes(
                             UUID.class,
                             ResolvedGroupArtifactVersion.class // FIXME: Difference in repository URI, file:/ vs. file:///
