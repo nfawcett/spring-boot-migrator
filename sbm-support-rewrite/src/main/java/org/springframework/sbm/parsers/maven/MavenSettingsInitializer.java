@@ -46,8 +46,8 @@ public class MavenSettingsInitializer {
      */
     public void initializeMavenSettings() {
         String repo = "file://" + Path.of(System.getProperty("user.home")).resolve(".m2/repository") + "/";
-        MavenRepository mavenRepository = new MavenRepository("local", new File(System.getProperty("user.home") + "/.m2/repository").toURI().toString(), "true", "true", true, null, null, false);
-        MavenSettings mavenSettings = new MavenSettings(repo, null, null, null, null, null);
+        MavenRepository mavenRepository = new MavenRepository("local", repo, "true", "true", true, null, null, false);
+        MavenSettings mavenSettings = new MavenSettings(repo, mavenRepository, null, null, null, null);
         // Read .m2/settings.xml
         // TODO: Add support for global Maven settings (${maven.home}/conf/settings.xml).
         Path mavenSettingsFile = Path.of(System.getProperty("user.home")).resolve(".m2/settings.xml");
